@@ -1,6 +1,9 @@
 const express = require('express')
 const {request, response} = require("express");
 const app = express()
+const cors = require('cors')
+app.use(cors())
+
 const requestLogger = (request, response, next) => {
   console.log('Method:', request.method)
   console.log('Path:  ', request.path)
@@ -55,6 +58,17 @@ app.get('/api/persons/:id',(request,response)=>{
     if (person)  response.json(person)
     else response.status(404).end()
 })
+
+app.put('/api/persons/:id',(req,res)=>{
+    const id =Number(req.params.id)
+    const body=req.body
+    if (!body.number) return response.status(400).json({error:"number missing"})
+    const person= persons.find(person=>person.id===id)
+    person.number=body.number
+    persons= persons.map(personitem=> personitem.id===id? person:personitem)
+    res.json(person)
+})
+
 app.delete('/api/persons/:id',(request,response)=>{
     const id=Number(request.params.id)
     persons=persons.filter(person=>person.id!==id)
