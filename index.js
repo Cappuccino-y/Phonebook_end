@@ -1,3 +1,6 @@
+require('dotenv').config()
+const Person= require('./models/person')
+
 const express = require('express')
 const {request, response} = require("express");
 const app = express()
@@ -42,7 +45,9 @@ let persons = [
     }
 ]
 app.get('/api/persons', (request, response) => {
-    response.json(persons)
+    Person.find({}).then(persons=>{
+        response.json(persons)
+    })
 })
 app.get('/info', (request, response) => {
     const now = new Date();
@@ -53,49 +58,73 @@ app.get('/info', (request, response) => {
                           ${now}
                          </p>`)
 })
-app.get('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const person = persons.find(person => person.id === id)
-    console.log(person)
-    if (person) response.json(person)
-    else response.status(404).end()
+app.get('/api/persons/:id', (request, response,next) => {
+    Person.findById(request.params.id)
+    .then(person => {
+      if (person) {
+        response.json(person)
+      } else {
+        response.status(404).end()
+      }
+    })
+    .catch(error => next(error))
 })
 
-app.put('/api/persons/:id', (req, res) => {
-    const id = Number(req.params.id)
+app.put('/api/persons/:id', (req, res,next) => {
     const body = req.body
-    if (!body.number) return response.status(400).json({error: "number missing"})
-    const person = persons.find(person => person.id === id)
-    person.number = body.number
-    persons = persons.map(personitem => personitem.id === id ? person : personitem)
-    res.json(person)
+    const person= {
+    name: body.name,
+    number: body.number,
+    date:new Date()
+    }
+    Person.findByIdAndUpdate(req.params.id, person, { new: true })
+        .then(updatedNote => {
+          res.json(updatedNote)
+        })
+        .catch(error => next(error))
 })
 
-app.delete('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    persons = persons.filter(person => person.id !== id)
-    response.status(204).end()
+app.delete('/api/persons/:id', (request, response,next) => {
+    Person.findByIdAndRemove(request.params.id)
+    .then(result => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 })
 
 app.post('/api/persons', (request, response) => {
     const body = request.body
     if (!body.name) return response.status(400).json({error: "name missing"})
     if (!body.number) return response.status(400).json({error: "number missing"})
-    if (persons.find(person => person.name === body.name)) return response.status(400).json({error: 'name must be unique'})
+    Person.find({name:body.name}).then(person=>{
+        if (!person) response.status(400).json({error: 'name must be unique'})
+    })
 
-    const person = {
+    const person =new Person({
         name: body.name,
         number: body.number,
-        id: Math.floor(Math.random() * 100000),
         date: new Date()
     }
-    persons = persons.concat(person)
-    response.json(person)
+    )
+    person.save().then(person=> response.json(person))
 })
 const unknownEndpoint = (request, response) => {
     response.status(404).send({error: 'unknown endpoint'})
 }
 app.use(unknownEndpoint)
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  }
+
+  next(error)
+}
+
+// this has to be the last loaded middleware.
+app.use(errorHandler)
 
 const PORT = 3001
 app.listen(PORT, () => {

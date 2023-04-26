@@ -13,7 +13,8 @@ mongoose.connect(url)
 
 const noteSchema = new mongoose.Schema({
     name: String,
-    number: String
+    number: String,
+    date: Date
 })
 
 noteSchema.set('toJSON', {
@@ -24,4 +25,4 @@ noteSchema.set('toJSON', {
     }
 })
 
-export default mongoose.model('Note', noteSchema)
+module.exports= mongoose.model('Person', noteSchema)
